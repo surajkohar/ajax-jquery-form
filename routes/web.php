@@ -24,6 +24,9 @@ Route::post('/updateCity',[CityController::class,'update']);
 
 Route::post('/deleteCity',[CityController::class,'destroy']);
 
+Route::get('/form',function(){
+    return view('test');
+});
 
 
 

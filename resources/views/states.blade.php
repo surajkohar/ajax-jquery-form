@@ -157,7 +157,7 @@
                             } else {
                                 return `<button class='btn btn-sm btn-warning'>${ row.status }</button>`;
                             }
-                        }
+                        }     
                     },
                     {
                         data: null,
@@ -185,7 +185,7 @@
                 type:"get",
                 dataType:"json",
                 data:{
-                    "id":$(this).data('id')
+                    "id":$(this).data('id')     
                 },
                 success:function(response){
                     // console.log(response.data);
@@ -237,3 +237,5 @@
     </script>
 </body>
 </html>
+
+
