@@ -49,3 +49,5 @@ Route::get('/', function () {
 
 Route::post('/api/employees', [EmployeeController::class, 'store']);
 Route::get('/api/employees', [EmployeeController::class, 'index']);
+Route::post('/api/employees/delete', [EmployeeController::class, 'deleteSelected']);
+Route::get('/api/employees/export', [EmployeeController::class, 'export']);

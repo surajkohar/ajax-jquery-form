@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateEmployeeRequest;
 use App\Models\Employee;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\EmployeesExport;
 
 class EmployeeController extends Controller
 {
@@ -46,7 +48,8 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = 3; // Number of employees per page
+        // dd($request->all());
+        $perPage = $request->input('perPage', 5); // Default to 5 if not provided
         $page = $request->input('page', 1);
         $searchTerm = $request->input('search', '');
         $dateFilter = $request->input('date', '');
@@ -139,4 +142,17 @@ class EmployeeController extends Controller
     {
         //
     }
+    
+    public function deleteSelected(Request $request)
+  {
+    $ids = $request->input('ids');
+    Employee::whereIn('id', $ids)->delete();
+    return response()->json(['message' => 'Employees deleted successfully']);
+  }
+  
+  public function export()
+{
+    return Excel::download(new EmployeesExport, 'employees.xlsx');
+}
+
 }
