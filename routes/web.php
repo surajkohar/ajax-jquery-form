@@ -3,6 +3,7 @@
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StateController;
+use App\Http\Controllers\EmailController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -51,3 +52,4 @@ Route::post('/api/employees', [EmployeeController::class, 'store']);
 Route::get('/api/employees', [EmployeeController::class, 'index']);
 Route::post('/api/employees/delete', [EmployeeController::class, 'deleteSelected']);
 Route::get('/api/employees/export', [EmployeeController::class, 'export']);
+Route::post('/api/send-email', [EmailController::class, 'sendEmail']);

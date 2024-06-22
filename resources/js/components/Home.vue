@@ -62,13 +62,22 @@
             <label for="dateFilter" class="me-2">Filter by Date:</label>
             <input type="date" id="dateFilter" v-model="dateFilter" @input="applyFilters" class="form-control">
           </div>
-          <button @click="resetTable" class="btn btn-primary mt-4">Reset</button>
+          <!-- <button @click="resetTable" class="btn btn-primary mt-4">Reset</button> -->
+          <button @click="resetTable" :class="{ 'btn btn-primary mt-4': true, 'btn-warning': hasFilters }"
+            class="btn mt-4">Reset</button>
+
         </div>
 
         <div class="d-flex justify-content-between align-items-center mb-3">
           <div>
             <button @click="deleteSelected" class="btn btn-danger">Delete Selected</button>
-            <button @click="exportToExcel" class="btn btn-success">Export to Excel</button>
+            <button type="button" @click="exportToExcel" class="btn btn-outline-success p-2 mx-2">
+              <i :class="loading ? 'fa fa-spinner' : 'fa fa-download'"></i>
+              Export to
+              Excel</button>
+            <button @click="openSendMailModal" :disabled="selectedEmployees.length === 0" class="btn btn-info">Send
+              Mail</button>
+
           </div>
         </div>
 
@@ -165,9 +174,65 @@
       </div>
     </div>
   </div>
+
+
+
+  <!-- Send Mail Modal -->
+  <div class="modal" tabindex="-1" role="dialog" ref="sendMailModal">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Send Mail</h5>
+          <button type="button" class="close" @click="closeSendMailModal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="sendMail" enctype="multipart/form-data">
+            <!-- <div class="form-group">
+              <label for="emailSubject">Subject</label>
+              <input type="text" class="form-control" id="emailSubject" v-model="emailSubject">
+          </div>
+          <div class="form-group">
+            <label for="emailBody">Message</label>
+            <div ref="quillEditor" style="min-height: 200px;"></div>
+          </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="closeSendMailModal">Close</button>
+          <button type="button" class="btn btn-primary" @click="sendMail">Send Mail</button>
+        </div> -->
+            <div class="mb-3">
+              <label for="emailSubject" class="form-label">Subject</label>
+              <input type="text" id="emailSubject" v-model="emailSubject" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label for="emailBody" class="form-label">Body</label>
+              <!-- Quill Editor Container -->
+              <div ref="quillEditor" id="quillEditor" style="min-height: 200px;"></div>
+            </div>
+            <!-- File Upload -->
+            <div class="mb-3">
+              <label for="fileUpload" class="form-label">Attach File</label>
+              <input type="file" id="fileUpload" @change="handleFileUpload($event)" class="form-control">
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" @click="closeSendMailModal">Close</button>
+              <button type="submit" class="btn btn-primary">Send</button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
 </template>
 
+
+
 <script>
+import { ref, onMounted } from 'vue';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 export default {
   data() {
     return {
@@ -180,6 +245,7 @@ export default {
         joining_date: '',
         leaving_date: ''
       },
+      loading: false,
       filteredEmployees: [],
       page: 1,
       totalPages: 0,
@@ -190,10 +256,21 @@ export default {
       sortDirection: 'asc', // Initialize with the default sort direction
       selectedEmployees: [], // Track selected employees
       selectAll: false, // Track select all state
+      emailSubject: '', // Subject for the email
+      emailBody: '', // Body of the email
+      quillEditor: null,
+      attachedFile: null,
     };
   },
   mounted() {
     this.fetchEmployees();
+
+    this.initializeQuill();
+  },
+  computed: {
+    hasFilters() {
+      return this.searchTerm || this.dateFilter;
+    }
   },
   watch: {
     selectedEmployees(newVal) {
@@ -319,26 +396,98 @@ export default {
         alert('An error occurred while deleting employees');
       }
     },
-    async exportToExcel() {
-      try {
-        const response = await fetch('/api/employees/export');
-        if (!response.ok) {
-          throw new Error('Failed to export data');
-        }
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'employees.xlsx');
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode.removeChild(link);
-      } catch (error) {
-        console.error('Error exporting data:', error);
-        alert('An error occurred while exporting data');
+    async exportToExcel() {
+      if (!this.loading) {
+        this.loading = true;
+        try {
+
+          const response = await fetch('/api/employees/export');
+          if (!response.ok) {
+            throw new Error('Failed to export data');
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', 'employees.xlsx');
+          document.body.appendChild(link);
+          link.click();
+          link.parentNode.removeChild(link);
+
+        } catch (error) {
+          console.error('Error exporting data:', error);
+          alert('An error occurred while exporting data');
+        }
+        this.loading = false;
       }
-    }
+    },
+    openSendMailModal() {
+      this.$refs.sendMailModal.style.display = 'block';
+    },
+    closeSendMailModal() {
+      this.$refs.sendMailModal.style.display = 'none';
+    },
+
+    initializeQuill() {
+      this.quillEditor = new Quill(this.$refs.quillEditor, {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            [{ 'header': '1' }, { 'header': '2' }, { 'font': [] }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['bold', 'italic', 'underline'],
+            ['link', 'image', 'video'],
+            ['clean']
+          ],
+        },
+      });
+    },
+
+
+    handleFileUpload(event) {
+      this.attachedFile = event.target.files[0]; // Store the selected file
+    },
+
+    sendMail() {
+      const emailBody = this.quillEditor.root.innerHTML;
+      const formData = new FormData();
+      formData.append('subject', this.emailSubject);
+      formData.append('body', emailBody);
+      formData.append('selectedEmployees', JSON.stringify(this.selectedEmployees));
+
+      if (this.attachedFile) {
+        formData.append('file', this.attachedFile); // Append attached file to FormData
+      }
+
+      // Fetch CSRF token from meta tag
+      const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content;
+
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken // Include CSRF token in headers
+        },
+        body: formData
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to send email');
+          }
+          alert('Email sent successfully');
+          this.emailSubject = '';
+          this.quillEditor.root.innerHTML = '';
+          this.attachedFile = null;
+          this.closeSendMailModal(); // Close modal after sending
+        })
+        .catch(error => {
+          console.error('Error sending email:', error);
+          alert('An error occurred while sending the email');
+        });
+    },
+
+
   }
 };
 </script>
@@ -347,5 +496,57 @@ export default {
 .fas {
   margin-left: 5px;
   color: grey;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1050;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  outline: 0;
+}
+
+.modal-dialog {
+  max-width: 500px;
+  margin: 30px auto;
+}
+
+.modal-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 0.3rem;
+  outline: 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  border-top-left-radius: 0.3rem;
+  border-top-right-radius: 0.3rem;
+}
+
+.modal-body {
+  position: relative;
+  flex: 1 1 auto;
+  padding: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 1rem;
+  border-top: 1px solid #dee2e6;
 }
 </style>

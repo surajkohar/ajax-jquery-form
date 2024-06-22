@@ -21,6 +21,7 @@
         "vue": "^3.2.37"
     },
     "dependencies": {
+        "quill": "^2.0.2",
         "vue-router": "^4.3.3"
     }
 }
